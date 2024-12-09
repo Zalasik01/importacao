@@ -15,14 +15,6 @@ def process_planilha(input_file):
     # Remover espaços em branco nas colunas
     df.columns = df.columns.str.strip()
 
-    # Ajustar VALOR COMPRA, VALOR DE VENDA e VALOR A VISTA antes da remoção
-    if all(col in df.columns for col in ["O", "P", "Q", "R"]):
-        df["VALOR COMPRA"] = pd.to_numeric(df["O"], errors="coerce").fillna(0).map(lambda x: f"{x:.2f}")
-        df["VALOR DE VENDA"] = pd.to_numeric(df["P"], errors="coerce").fillna(0).map(lambda x: f"{x:.2f}")
-        df["VALOR A VISTA"] = pd.to_numeric(df["Q"], errors="coerce").fillna(0).map(lambda x: f"{x:.2f}")
-    else:
-        print("Alguma das colunas O, P, Q ou R não foi encontrada no DataFrame.")
-
     # Mapear as colunas da planilha de origem para destino
     colunas_destino = {
         "POSICAO ESTOQUE": "STATUS",
@@ -89,9 +81,6 @@ def process_planilha(input_file):
     df_final["VALOR A VISTA"] = df_final["VALOR DE VENDA"]
     # Dividir a coluna MODELO em MODELO e COMPLEMENTO
     df_final[["MODELO", "COMPLEMENTO"]] = df_final["MODELO"].str.split(n=1, expand=True)
-    # Ajustar colunas para o formato numérico (removendo R$ e vírgulas)
-    for col in ["VALOR COMPRA", "VALOR A VISTA", "VALOR DE VENDA"]:
-        df_final[col] = df_final[col].str.replace(r"[^\d]", "", regex=True).astype(float)
 
     # Salvar o resultado na planilha destino
     df_final.to_excel(output_file, index=False)
