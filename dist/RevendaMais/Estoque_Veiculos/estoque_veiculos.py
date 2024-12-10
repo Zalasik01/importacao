@@ -114,14 +114,11 @@ def processar_planilhas(input_file_1, input_file_2=None, output_file=None):
             workbook = writer.book
             worksheet = writer.sheets['Planilha Final']
 
-            # Identificar a coluna da data/hora
+            # Formatar a coluna de data/hora
+            format_data_hora = workbook.add_format({'num_format': 'dd/mm/yyyy hh:mm:ss'})
             if "DATA E HORA DE SAIDA" in df_final.columns:
-                col_idx = df_final.columns.get_loc("DATA E HORA DE SAIDA") + 1
-                worksheet.set_column(col_idx, col_idx, 20)  # Define largura da coluna
-                # Formato para data e hora no LibreOffice
-                format_data_hora = workbook.add_format({'num_format': 'dd/mm/yyyy hh:mm:ss'})
-                worksheet.set_column(col_idx, col_idx, None, format_data_hora)
-
+                col_idx = df_final.columns.get_loc("DATA E HORA DE SAIDA")
+                worksheet.set_column(col_idx, col_idx, 20, format_data_hora)
 
         print(f"Arquivo salvo em: {output_file}")
         
