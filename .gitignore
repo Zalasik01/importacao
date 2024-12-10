@@ -1,0 +1,19 @@
+# Ignorar arquivos e diretórios comuns
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+db.sqlite3
+*.log
+.DS_Store
+
+# Ignorar diretórios de ambiente virtual
+venv/
+.env/
+
+# Ignorar arquivos temporários do sistema
+*.tmp
+
+# Ignorar diretórios específicos (como pasta de recursos não necessários)
+assets/

@@ -1,92 +1,116 @@
-import pandas as pd
-from datetime import datetime
-import pytz  # Para lidar com o fuso horário
+import ttkbootstrap as tb
+from tkinter import filedialog, messagebox
+import os
+import subprocess
 
 
-def process_planilha(input_file):
-    # Capturando a data e hora no formato correto de Brasília
-    now = datetime.now(pytz.timezone("America/Sao_Paulo"))
-    timestamp = now.strftime("%Y%m%d_%H%M%S")  # Formato: AAAAMMDD_HHMMSS
-    output_file = f"ESTOQUE_{timestamp}.xlsx"
+def selecionar_planilha():
+    """Abre um diálogo para selecionar a planilha de origem."""
+    file_path = filedialog.askopenfilename(
+        title="Selecione a Planilha de Origem",
+        filetypes=[("Planilhas Excel", "*.xlsx *.xls")]
+    )
+    return file_path
 
-    # Ler a planilha e considerar a primeira linha como cabeçalho
-    df = pd.read_excel(input_file)
 
-    # Remover espaços em branco nas colunas
-    df.columns = df.columns.str.strip()
+def chamar_subaplicativo(sistema, categoria, file_path):
+    """Chama o aplicativo correto com base no sistema e categoria."""
+    try:
+        # Caminho do script
+        script_path = os.path.join(os.getcwd(), sistema, categoria, f"{categoria.lower()}.py")
 
-    # Mapear as colunas da planilha de origem para destino
-    colunas_destino = {
-        "POSICAO ESTOQUE": "STATUS",
-        "DATA COMPRA": "DATA DE ENTRADA",
-        "MARCA": "MARCA",
-        "MODELO": "MODELO",
-        "CHASSI": "CHASSI",
-        "RENAVAM": "RENAVAM",
-        "ANO MODELO": "ANO MOD",
-        "COR": "COR",
-        "COMBUSTIVEL": "COMBUSTIVEL",
-        "PLACA": "PLACA",
-        "TIPO": "TIPO",
-        "VALOR COMPRA": "VALOR COMPRA",
-        "VALOR VENDA": "VALOR DE VENDA",
-        "FORNECEDOR": "NOME PROPRIETARIO ENTRADA",
-        "CPF/CNPJ FORNECEDOR": "CPF/CNPJ PROPRIETARIO ENTRADA",
-        "KM": "KM"
-    }
+        # Debug - Verificar caminho real
+        print(f"Tentando acessar o script: {script_path}")
+        if not os.path.exists(script_path):
+            raise FileNotFoundError(f"Script não encontrado: {script_path}")
 
-    # Renomear colunas
-    df_renomeado = df.rename(columns=colunas_destino)
+        # Executar o script
+        subprocess.run(["python", script_path, file_path], check=True)
 
-    # Tratamento COMBUSTIVEL
-    if "COMBUSTIVEL" in df.columns:
-        df_renomeado["COMBUSTIVEL"] = df["COMBUSTIVEL"].replace({
-            "FLEX": "ALCOOL/GASOLINA"
-        })
+        # Mensagem no próprio aplicativo avisando que a conversão foi concluída
+        messagebox.showinfo("Concluído", "Conversão da planilha concluída com sucesso!")
+    except FileNotFoundError as e:
+        messagebox.showerror("Erro", str(e))
+    except subprocess.CalledProcessError as e:
+        messagebox.showerror("Erro", f"Erro ao executar o script: {e}")
+    except Exception as e:
+        messagebox.showerror("Erro", f"Erro inesperado: {e}")
+
+
+def iniciar_processo():
+    """Função chamada ao clicar no botão."""
+    sistema = sistema_var.get()
+    categoria = categoria_var.get()
+
+    if not sistema or not categoria:
+        messagebox.showwarning("Aviso", "Por favor, selecione todas as opções!")
+        return
+
+    file_path = selecionar_planilha()
+    if not file_path:
+        return
+
+    if categoria == "Estoque de veículos":
+        chamar_subaplicativo(sistema, "Estoque_Veiculos", file_path)
     else:
-        print("A coluna 'COMBUSTIVEL' não foi encontrada no DataFrame.")
-
-    # Tratamento TIPO da coluna 'TIPO'
-    if "TIPO" in df.columns:
-        df_renomeado["TIPO"] = df["TIPO"].replace({
-            "Consignado": "TERCEIRO_CONSIGNADO",
-            "Proprio": "PROPRIO"
-        })
-    else:
-        print("A coluna 'TIPO' não foi encontrada no DataFrame.")
-
-    # Listar colunas finais desejadas
-    colunas_final = [
-        "ID", "STATUS", "DATA DE ENTRADA", "DATA E HORA DE SAIDA", "MARCA",
-        "MODELO", "COMPLEMENTO", "CHASSI", "RENAVAM", "NUMERO MOTOR",
-        "ANO FAB.", "ANO MOD", "COR", "COMBUSTIVEL", "PLACA", "TIPO",
-        "VALOR COMPRA", "VALOR A VISTA", "VALOR DE VENDA",
-        "NOME PROPRIETARIO ENTRADA", "CPF/CNPJ PROPRIETARIO ENTRADA",
-        "KM", "PORTAS", "CAMBIO", "CNPJ REVENDA", "ESTADO_CONVERSACAO"
-    ]
-
-    # Criar DataFrame final com as colunas desejadas
-    df_final = pd.DataFrame(columns=colunas_final)
-    for coluna in colunas_final:
-        if coluna in df_renomeado.columns:
-            df_final[coluna] = df_renomeado[coluna]
-        else:
-            df_final[coluna] = None
-
-    # Tratar valores null na coluna "ESTADO_CONVERSACAO"
-    df_final["ESTADO_CONVERSACAO"] = df_final["ESTADO_CONVERSACAO"].fillna("USADO")
-    # Tratar valores da coluna "ANO FAB." para serem iguais aos valores de "ANO MOD"
-    df_final["ANO FAB."] = df_final["ANO MOD"]
-    # Tratar valores da coluna "VALOR A VISTA" para ser igual ao "VALOR DE VENDA"
-    df_final["VALOR A VISTA"] = df_final["VALOR DE VENDA"]
-    # Dividir a coluna MODELO em MODELO e COMPLEMENTO
-    df_final[["MODELO", "COMPLEMENTO"]] = df_final["MODELO"].str.split(n=1, expand=True)
-
-    # Salvar o resultado na planilha destino
-    df_final.to_excel(output_file, index=False)
-    print(f"Arquivo salvo como: {output_file}")
+        messagebox.showwarning("Aviso", "Essa funcionalidade ainda não está implementada.")
 
 
-# Chamada da função apenas com o caminho de origem
-input_file = "planilha_origem.xlsx"
-process_planilha(input_file)
+# Configuração da interface
+root = tb.Window(themename="cosmo")
+root.title("Conversor de Planilhas")
+root.geometry("500x400")
+
+# Centraliza a janela na tela
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+window_width = 500
+window_height = 400
+center_x = (screen_width // 2) - (window_width // 2)
+center_y = (screen_height // 2) - (window_height // 2)
+root.geometry(f"{window_width}x{window_height}+{center_x}+{center_y}")
+
+# Configuração da interface principal
+header_label = tb.Label(
+    root,
+    text="Conversor de Planilhas",
+    font=("Arial", 18, "bold"),
+    bootstyle="light"
+)
+header_label.pack(pady=10)
+
+frame_main = tb.Frame(root)
+frame_main.pack(pady=10, fill="both", expand=True)
+
+# Dropdown para seleção do sistema
+tb.Label(frame_main, text="De qual sistema a planilha de origem é:", font=("Arial", 12)).pack(pady=5)
+sistema_var = tb.StringVar()
+sistema_dropdown = tb.Combobox(
+    frame_main,
+    textvariable=sistema_var,
+    bootstyle="secondary"
+)
+sistema_dropdown['values'] = ["RevendaMais", "AutoConf", "Boom Sistemas"]
+sistema_dropdown.pack(pady=5, fill="x", padx=10)
+
+# Dropdown para seleção da funcionalidade
+tb.Label(frame_main, text="Você deseja importar o quê:", font=("Arial", 12)).pack(pady=5)
+categoria_var = tb.StringVar()
+categoria_dropdown = tb.Combobox(
+    frame_main,
+    textvariable=categoria_var,
+    bootstyle="secondary"
+)
+categoria_dropdown['values'] = ["Estoque de veículos", "Clientes", "Oportunidades"]
+categoria_dropdown.pack(pady=5, fill="x", padx=10)
+
+# Botão para iniciar o processo
+button_start = tb.Button(
+    frame_main,
+    text="Iniciar Processo",
+    bootstyle="success",
+    command=iniciar_processo
+)
+button_start.pack(pady=20)
+
+root.mainloop()
