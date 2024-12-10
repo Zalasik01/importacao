@@ -75,7 +75,6 @@ def processar_planilhas(input_file_1, input_file_2=None, output_file=None):
         data_atual = datetime.now()
 
         # Atualizar onde 'DATA E HORA DE SAIDA' estiver null e STATUS == 1 com a data atual
-        df_combinado["DATA E HORA DE SAIDA"] = pd.to_datetime(df_combinado["DATA E HORA DE SAIDA"])
         df_combinado["DATA E HORA DE SAIDA"] = df_combinado.apply(
             lambda row: data_atual if pd.isnull(row["DATA E HORA DE SAIDA"]) and row["STATUS"] == 1 else row["DATA E HORA DE SAIDA"],
             axis=1
