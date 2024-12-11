@@ -2,70 +2,122 @@ import ttkbootstrap as tb
 from tkinter import filedialog, messagebox
 import os
 import subprocess
+import sys
 
+# Variáveis globais para armazenar os caminhos das planilhas
+planilha_1_caminho = ""
+planilha_2_caminho = ""
 
-def selecionar_planilha():
-    """Abre um diálogo para selecionar a planilha de origem."""
+def selecionar_primeira_planilha():
+    """Abre um diálogo para selecionar a primeira planilha."""
+    global planilha_1_caminho
     file_path = filedialog.askopenfilename(
-        title="Selecione a Planilha de Origem",
+        title="Selecione a Planilha Estoque (opcional)",
         filetypes=[("Planilhas Excel", "*.xlsx *.xls")]
     )
-    return file_path
+    if file_path:
+        planilha_1_caminho = file_path
+        label_1.config(text=f"Planilha Estoque: {os.path.basename(file_path)}")
+    else:
+        messagebox.showinfo("Info", "Nenhuma planilha selecionada para Estoque.")
 
+def selecionar_segunda_planilha():
+    """Abre um diálogo para selecionar a segunda planilha."""
+    global planilha_2_caminho
+    file_path = filedialog.askopenfilename(
+        title="Selecione a Planilha Vendido (opcional)",
+        filetypes=[("Planilhas Excel", "*.xlsx *.xls")]
+    )
+    if file_path:
+        planilha_2_caminho = file_path
+        label_2.config(text=f"Planilha Vendido: {os.path.basename(file_path)}")
+    else:
+        messagebox.showinfo("Info", "Nenhuma planilha selecionada para Vendido.")
 
-def chamar_subaplicativo(sistema, categoria, file_path):
-    """Chama o aplicativo correto com base no sistema e categoria."""
+def chamar_subaplicativo(file_path_1=None, file_path_2=None, output_file=None):
+    """Chama o script correto para processar as planilhas."""
     try:
-        # Caminho do script
-        script_path = os.path.join(os.getcwd(), sistema, categoria, f"{categoria.lower()}.py")
+        # Caminho fixo para o script
+        script_path = r"C:\Users\nicolas.souza\Desktop\Planilhas\dist\RevendaMais\Estoque_Veiculos\estoque_veiculos.py"
 
-        # Debug - Verificar caminho real
-        print(f"Tentando acessar o script: {script_path}")
+        # Validar se o script existe
         if not os.path.exists(script_path):
             raise FileNotFoundError(f"Script não encontrado: {script_path}")
 
-        # Executar o script
-        subprocess.run(["python", script_path, file_path], check=True)
+        # Preparar os argumentos
+        args = [sys.executable, script_path]
+        if file_path_1:
+            args.append(file_path_1)
+        if file_path_2:
+            args.append(file_path_2)
+        args.append(output_file)
 
-        # Mensagem no próprio aplicativo avisando que a conversão foi concluída
+        # Log de depuração
+        print(f"Comando para subprocess: {' '.join(args)}")
+
+        # Executar o script com subprocess
+        result = subprocess.run(args, check=True, capture_output=True, text=True)
+
+        # Log de saída do script
+        print("Saída do script:", result.stdout)
+
+        # Mensagem de sucesso
         messagebox.showinfo("Concluído", "Conversão da planilha concluída com sucesso!")
+        limpar_selecao()
+
     except FileNotFoundError as e:
         messagebox.showerror("Erro", str(e))
     except subprocess.CalledProcessError as e:
-        messagebox.showerror("Erro", f"Erro ao executar o script: {e}")
+        # Log de erro do script
+        print("Erro no script:", e.stderr)
+        messagebox.showerror("Erro", f"Erro ao executar o script: {e.stderr}")
     except Exception as e:
         messagebox.showerror("Erro", f"Erro inesperado: {e}")
 
+def limpar_selecao():
+    """Limpa as seleções de planilhas no formulário."""
+    global planilha_1_caminho, planilha_2_caminho
+    planilha_1_caminho = ""
+    planilha_2_caminho = ""
+    label_1.config(text="Nenhuma planilha selecionada")
+    label_2.config(text="Nenhuma planilha selecionada")
 
-def iniciar_processo():
-    """Função chamada ao clicar no botão."""
-    sistema = sistema_var.get()
-    categoria = categoria_var.get()
-
-    if not sistema or not categoria:
-        messagebox.showwarning("Aviso", "Por favor, selecione todas as opções!")
+def converter():
+    """Função chamada ao clicar no botão de converter."""
+    if not planilha_1_caminho and not planilha_2_caminho:
+        messagebox.showwarning("Aviso", "Selecione pelo menos uma planilha para converter.")
         return
 
-    file_path = selecionar_planilha()
-    if not file_path:
+    # Perguntar onde salvar o arquivo de saída
+    output_file = filedialog.asksaveasfilename(
+        title="Selecione o local e o nome do arquivo de saída",
+        defaultextension=".xlsx",
+        filetypes=[("Planilhas Excel", "*.xlsx"), ("Todos os Arquivos", "*.*")]
+    )
+
+    if not output_file:
+        messagebox.showwarning("Aviso", "Nenhum arquivo foi selecionado para salvar o resultado.")
         return
 
-    if categoria == "Estoque de veículos":
-        chamar_subaplicativo(sistema, "Estoque_Veiculos", file_path)
+    chamar_subaplicativo(planilha_1_caminho, planilha_2_caminho, output_file)
+
+def mostrar_opcoes_de_planilha():
+    """Exibe as opções de seleção para planilhas depois de selecionar o sistema e a categoria."""
+    if sistema_var.get() and categoria_var.get():
+        frame_planilhas.pack(pady=10, fill="both", expand=True)
     else:
-        messagebox.showwarning("Aviso", "Essa funcionalidade ainda não está implementada.")
-
+        messagebox.showwarning("Erro", "Por favor, selecione o sistema e a funcionalidade primeiro!")
 
 # Configuração da interface
 root = tb.Window(themename="cosmo")
 root.title("Conversor de Planilhas")
-root.geometry("500x400")
+root.geometry("600x500")
 
 # Centraliza a janela na tela
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
-window_width = 500
-window_height = 400
+window_width = 600
+window_height = 500
 center_x = (screen_width // 2) - (window_width // 2)
 center_y = (screen_height // 2) - (window_height // 2)
 root.geometry(f"{window_width}x{window_height}+{center_x}+{center_y}")
@@ -79,11 +131,12 @@ header_label = tb.Label(
 )
 header_label.pack(pady=10)
 
+# Dropdown para o sistema e categoria
 frame_main = tb.Frame(root)
-frame_main.pack(pady=10, fill="both", expand=True)
+frame_main.pack(pady=10)
 
-# Dropdown para seleção do sistema
-tb.Label(frame_main, text="De qual sistema a planilha de origem é:", font=("Arial", 12)).pack(pady=5)
+# Dropdown Sistema
+tb.Label(frame_main, text="Escolha o sistema:", font=("Arial", 12)).pack(pady=5)
 sistema_var = tb.StringVar()
 sistema_dropdown = tb.Combobox(
     frame_main,
@@ -93,8 +146,8 @@ sistema_dropdown = tb.Combobox(
 sistema_dropdown['values'] = ["RevendaMais", "AutoConf", "Boom Sistemas"]
 sistema_dropdown.pack(pady=5, fill="x", padx=10)
 
-# Dropdown para seleção da funcionalidade
-tb.Label(frame_main, text="Você deseja importar o quê:", font=("Arial", 12)).pack(pady=5)
+# Dropdown Categoria
+tb.Label(frame_main, text="Escolha a funcionalidade:", font=("Arial", 12)).pack(pady=5)
 categoria_var = tb.StringVar()
 categoria_dropdown = tb.Combobox(
     frame_main,
@@ -104,13 +157,49 @@ categoria_dropdown = tb.Combobox(
 categoria_dropdown['values'] = ["Estoque de veículos", "Clientes", "Oportunidades"]
 categoria_dropdown.pack(pady=5, fill="x", padx=10)
 
-# Botão para iniciar o processo
-button_start = tb.Button(
+# Botão para prosseguir após selecionar sistema e categoria
+botao_continuar = tb.Button(
     frame_main,
-    text="Iniciar Processo",
+    text="Continuar",
     bootstyle="success",
-    command=iniciar_processo
+    command=mostrar_opcoes_de_planilha
 )
-button_start.pack(pady=20)
+botao_continuar.pack(pady=10)
+
+# Frame para seleção das planilhas
+frame_planilhas = tb.Frame(root)
+
+# Botão para selecionar planilha 1
+botao_1 = tb.Button(
+    frame_planilhas,
+    text="Selecionar Planilha Estoque",
+    bootstyle="secondary",
+    command=selecionar_primeira_planilha
+)
+botao_1.pack(pady=5)
+
+label_1 = tb.Label(frame_planilhas, text="Nenhuma planilha selecionada", font=("Arial", 10))
+label_1.pack(pady=5)
+
+# Botão para selecionar planilha 2
+botao_2 = tb.Button(
+    frame_planilhas,
+    text="Selecionar Planilha Vendido",
+    bootstyle="secondary",
+    command=selecionar_segunda_planilha
+)
+botao_2.pack(pady=5)
+
+label_2 = tb.Label(frame_planilhas, text="Nenhuma planilha selecionada", font=("Arial", 10))
+label_2.pack(pady=5)
+
+# Botão para converter
+botao_converter = tb.Button(
+    frame_planilhas,
+    text="Converter",
+    bootstyle="success",
+    command=converter
+)
+botao_converter.pack(pady=10)
 
 root.mainloop()
